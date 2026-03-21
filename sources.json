@@ -1,0 +1,22 @@
+{
+  "feeds": [
+    "https://www.dronelife.com/feed/",
+    "https://www.suasnews.com/feed/"
+  ],
+  "keywords": [
+    "drone autonomy",
+    "gps-denied",
+    "visual inertial odometry",
+    "BVLOS",
+    "drone navigation",
+    "drone mapping",
+    "inspection drone"
+  ],
+  "companies": [
+    "Skydio",
+    "Red Cat",
+    "Modal AI",
+    "Teledyne FLIR",
+    "Autel"
+  ]
+}
