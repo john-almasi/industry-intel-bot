@@ -78,6 +78,57 @@ def query_existing_by_duplicate_key(dup_key: str) -> bool:
     return len(data.get("results", [])) > 0
 
 
+def extract_image_url(entry) -> str | None:
+    # media_content / media_thumbnail
+    media_content = getattr(entry, "media_content", None)
+    if media_content and isinstance(media_content, list):
+        for item in media_content:
+            url = item.get("url")
+            if url:
+                return url
+
+    media_thumbnail = getattr(entry, "media_thumbnail", None)
+    if media_thumbnail and isinstance(media_thumbnail, list):
+        for item in media_thumbnail:
+            url = item.get("url")
+            if url:
+                return url
+
+    # enclosures
+    enclosures = getattr(entry, "enclosures", None)
+    if enclosures and isinstance(enclosures, list):
+        for enc in enclosures:
+            enc_type = (enc.get("type") or "").lower()
+            href = enc.get("href") or enc.get("url")
+            if href and enc_type.startswith("image/"):
+                return href
+
+    # image / thumbnail-style fields
+    for key in ["image", "thumbnail", "featured_image"]:
+        value = getattr(entry, key, None)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    # links list with image rel/type
+    links = getattr(entry, "links", None)
+    if links and isinstance(links, list):
+        for link in links:
+            href = link.get("href")
+            link_type = (link.get("type") or "").lower()
+            rel = (link.get("rel") or "").lower()
+            if href and (link_type.startswith("image/") or rel == "enclosure"):
+                return href
+
+    # summary HTML: try img src
+    summary_html = getattr(entry, "summary", "") or getattr(entry, "description", "")
+    if summary_html:
+        match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', summary_html, flags=re.IGNORECASE)
+        if match:
+            return html.unescape(match.group(1)).strip()
+
+    return None
+
+
 def create_notion_page(item: dict):
     url = "https://api.notion.com/v1/pages"
 
@@ -127,6 +178,19 @@ def create_notion_page(item: dict):
         }
     }
 
+    if item.get("image_url"):
+        props["Image"] = {
+            "files": [
+                {
+                    "name": "article-image",
+                    "type": "external",
+                    "external": {
+                        "url": item["image_url"]
+                    }
+                }
+            ]
+        }
+
     if props["Company"]["select"] is None:
         del props["Company"]
 
@@ -135,8 +199,20 @@ def create_notion_page(item: dict):
         "properties": props
     }
 
+    if item.get("image_url"):
+        payload["cover"] = {
+            "type": "external",
+            "external": {
+                "url": item["image_url"]
+            }
+        }
+
     r = requests.post(url, headers=NOTION_HEADERS, json=payload, timeout=30)
-    r.raise_for_status()
+    if not r.ok:
+        print("Create page failed:")
+        print(r.status_code)
+        print(r.text)
+        r.raise_for_status()
 
 
 def categorize(company: str, keyword: str) -> str:
@@ -181,6 +257,7 @@ def parse_entry(entry, source_name):
         getattr(entry, "summary", "") or getattr(entry, "description", "")
     )
     link = getattr(entry, "link", "").strip()
+    image_url = extract_image_url(entry)
 
     published_dt = parse_published_date(entry)
     if not is_recent_enough(published_dt):
@@ -201,6 +278,7 @@ def parse_entry(entry, source_name):
         "category": categorize(company, keyword),
         "source": source_name,
         "duplicate_key": dup_key,
+        "image_url": image_url,
     }
 
 
