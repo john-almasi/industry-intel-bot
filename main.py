@@ -1,5 +1,7 @@
 import os
 import json
+import re
+import html
 import hashlib
 import requests
 import feedparser
@@ -23,7 +25,17 @@ MAX_AGE_DAYS = 30
 
 
 def normalize_text(text: str) -> str:
-    return " ".join((text or "").strip().split())
+    text = text or ""
+    text = html.unescape(text)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(
+        r"The post .*? appeared first on .*?\.",
+        " ",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
 def make_duplicate_key(url: str, title: str) -> str:
