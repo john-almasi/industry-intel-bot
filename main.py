@@ -294,6 +294,10 @@ def run():
             if not item:
                 continue
 
+            print(f"Title: {item['title']}")
+            print(f"Image URL: {item.get('image_url')}")
+            print("---")
+
             if query_existing_by_duplicate_key(item["duplicate_key"]):
                 continue
 
