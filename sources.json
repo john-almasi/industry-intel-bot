@@ -1,22 +1,39 @@
 {
   "feeds": [
-    "https://www.dronelife.com/feed/",
-    "https://www.suasnews.com/feed/"
-  ],
+  "https://www.dronelife.com/feed/",
+  "https://www.suasnews.com/feed/",
+  "https://www.unmannedairspace.info/feed/",
+  "https://dronebelow.com/feed/",
+  "https://www.roboticsbusinessreview.com/feed/",
+  "https://www.therobotreport.com/feed/"
+],
   "keywords": [
-    "drone autonomy",
-    "gps-denied",
-    "visual inertial odometry",
-    "BVLOS",
-    "drone navigation",
-    "drone mapping",
-    "inspection drone"
-  ],
+  "drone",
+  "autonomous drone",
+  "gps denied",
+  "visual inertial odometry",
+  "VIO",
+  "drone inspection",
+  "drone cleaning",
+  "BVLOS",
+  "LiDAR drone",
+  "robotics",
+  "inspection robotics",
+  "industrial drone",
+  "drone mapping",
+  "UAS",
+  "UAV"
+],
   "companies": [
-    "Skydio",
-    "Red Cat",
-    "Modal AI",
-    "Teledyne FLIR",
-    "Autel"
-  ]
+  "Skydio",
+  "Red Cat",
+  "Modal AI",
+  "Teledyne FLIR",
+  "Autel",
+  "DJI",
+  "Exyn",
+  "Flyability",
+  "Percepto",
+  "Airobotics"
+]
 }
