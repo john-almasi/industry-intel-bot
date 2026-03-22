@@ -9,7 +9,7 @@ from dateutil import parser as dateparser
 NOTION_TOKEN = os.environ["NOTION_TOKEN"]
 NOTION_DATABASE_ID = os.environ["NOTION_DATABASE_ID"]
 
-NOTION_VERSION = "2022-06-28"  # stable page/database API version
+NOTION_VERSION = "2022-06-28"
 NOTION_HEADERS = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
     "Content-Type": "application/json",
@@ -19,12 +19,15 @@ NOTION_HEADERS = {
 with open("sources.json", "r") as f:
     CONFIG = json.load(f)
 
+
 def normalize_text(text: str) -> str:
     return " ".join((text or "").strip().split())
+
 
 def make_duplicate_key(url: str, title: str) -> str:
     base = (url or title).strip().lower()
     return hashlib.sha256(base.encode("utf-8")).hexdigest()
+
 
 def is_relevant(title: str, summary: str) -> tuple[bool, str, str]:
     hay = f"{title} {summary}".lower()
@@ -43,6 +46,7 @@ def is_relevant(title: str, summary: str) -> tuple[bool, str, str]:
 
     return bool(matched_company or matched_keyword), matched_company, matched_keyword
 
+
 def query_existing_by_duplicate_key(dup_key: str) -> bool:
     url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}/query"
     payload = {
@@ -58,6 +62,7 @@ def query_existing_by_duplicate_key(dup_key: str) -> bool:
     r.raise_for_status()
     data = r.json()
     return len(data.get("results", [])) > 0
+
 
 def create_notion_page(item: dict):
     url = "https://api.notion.com/v1/pages"
@@ -96,11 +101,6 @@ def create_notion_page(item: dict):
                 {"text": {"content": item["summary"][:2000]}}
             ]
         },
-        "Why it matters": {
-            "rich_text": [
-                {"text": {"content": item["why_it_matters"][:2000]}}
-            ]
-        },
         "Imported On": {
             "date": {
                 "start": datetime.now(timezone.utc).date().isoformat()
@@ -113,7 +113,6 @@ def create_notion_page(item: dict):
         }
     }
 
-    # Remove null select if no company matched
     if props["Company"]["select"] is None:
         del props["Company"]
 
@@ -125,19 +124,14 @@ def create_notion_page(item: dict):
     r = requests.post(url, headers=NOTION_HEADERS, json=payload, timeout=30)
     r.raise_for_status()
 
+
 def categorize(company: str, keyword: str) -> str:
     if company:
         return "Competitor"
-    if "bvlos" in keyword.lower():
+    if keyword and "bvlos" in keyword.lower():
         return "Regulation"
     return "Industry"
 
-def why_it_matters(title: str, company: str, keyword: str) -> str:
-    if company:
-        return f"Competitor signal: {company} appears in this item and may indicate product, market, or partnership movement."
-    if keyword:
-        return f"Industry signal: this may affect roadmap or positioning around {keyword}."
-    return "General market signal relevant to the business."
 
 def parse_entry(entry, source_name):
     title = normalize_text(getattr(entry, "title", "Untitled"))
@@ -174,9 +168,9 @@ def parse_entry(entry, source_name):
         "company": company,
         "category": categorize(company, keyword),
         "source": source_name,
-        "why_it_matters": why_it_matters(title, company, keyword),
         "duplicate_key": dup_key,
     }
+
 
 def run():
     new_count = 0
@@ -198,6 +192,7 @@ def run():
             print(f"Added: {item['title']}")
 
     print(f"Done. Added {new_count} items.")
+
 
 if __name__ == "__main__":
     run()
