@@ -3,7 +3,7 @@ import json
 import hashlib
 import requests
 import feedparser
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dateutil import parser as dateparser
 
 NOTION_TOKEN = os.environ["NOTION_TOKEN"]
@@ -18,6 +18,8 @@ NOTION_HEADERS = {
 
 with open("sources.json", "r") as f:
     CONFIG = json.load(f)
+
+MAX_AGE_DAYS = 30
 
 
 def normalize_text(text: str) -> str:
@@ -133,6 +135,34 @@ def categorize(company: str, keyword: str) -> str:
     return "Industry"
 
 
+def parse_published_date(entry) -> datetime | None:
+    published_raw = (
+        getattr(entry, "published", None)
+        or getattr(entry, "updated", None)
+        or getattr(entry, "created", None)
+    )
+
+    if not published_raw:
+        return None
+
+    try:
+        published_dt = dateparser.parse(published_raw)
+        if published_dt is None:
+            return None
+        if published_dt.tzinfo is None:
+            published_dt = published_dt.replace(tzinfo=timezone.utc)
+        return published_dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def is_recent_enough(published_dt: datetime | None) -> bool:
+    if published_dt is None:
+        return False
+    cutoff = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)
+    return published_dt >= cutoff
+
+
 def parse_entry(entry, source_name):
     title = normalize_text(getattr(entry, "title", "Untitled"))
     summary = normalize_text(
@@ -140,19 +170,9 @@ def parse_entry(entry, source_name):
     )
     link = getattr(entry, "link", "").strip()
 
-    published_raw = (
-        getattr(entry, "published", None)
-        or getattr(entry, "updated", None)
-        or datetime.now(timezone.utc).isoformat()
-    )
-
-    try:
-        published_dt = dateparser.parse(published_raw)
-        if published_dt.tzinfo is None:
-            published_dt = published_dt.replace(tzinfo=timezone.utc)
-        published = published_dt.date().isoformat()
-    except Exception:
-        published = datetime.now(timezone.utc).date().isoformat()
+    published_dt = parse_published_date(entry)
+    if not is_recent_enough(published_dt):
+        return None
 
     relevant, company, keyword = is_relevant(title, summary)
     if not relevant:
@@ -164,7 +184,7 @@ def parse_entry(entry, source_name):
         "title": title,
         "summary": summary[:1800] if summary else "No summary available.",
         "url": link,
-        "published": published,
+        "published": published_dt.date().isoformat(),
         "company": company,
         "category": categorize(company, keyword),
         "source": source_name,
@@ -179,7 +199,7 @@ def run():
         parsed = feedparser.parse(feed_url)
         source_name = getattr(parsed.feed, "title", feed_url)
 
-        for entry in parsed.entries[:20]:
+        for entry in parsed.entries[:30]:
             item = parse_entry(entry, source_name)
             if not item:
                 continue
